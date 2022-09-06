@@ -1,0 +1,15 @@
+[package]
+name = "az-devops-rusting-prs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+log = "0.4"
+env_logger = "0.9"
+tokio = { version = "1.0", features = ["full"] }
+azure_devops_rust_api = { version = "0.5.1", features = ["git"] }
+azure_core = { version = "0.4", default-features = true }
+azure_identity = "0.5"
