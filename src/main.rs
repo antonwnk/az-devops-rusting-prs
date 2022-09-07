@@ -1,8 +1,24 @@
 use anyhow::Result;
-use azure_devops_rust_api::{git, Credential};
+use azure_devops_rust_api::git;
+use azure_devops_rust_api::Credential;
 use log::info;
 use std::env;
 use std::sync::Arc;
+
+
+const ORGANIZATION: &str = "IconProGmbH";
+const PROJECT: &str = "ARES";
+
+
+async fn get_repos(credential: Credential) -> Result<Vec<git::models::GitRepository>> {
+    let git_client = git::ClientBuilder::new(credential).build();
+    let repos = git_client.repositories_client()
+        .list(ORGANIZATION, PROJECT)
+        .into_future()
+        .await?
+        .value;
+    Ok(repos)
+}
 
 
 #[tokio::main]
@@ -20,19 +36,8 @@ async fn main() -> Result<()> {
         }
     };
 
-
-    let organization = "IconProGmbH".to_owned();
-    let project = "ARES".to_owned();
-
-    let git_client = git::ClientBuilder::new(credential).build();
+    let repos = get_repos(credential.clone()).await?;
     
-    let repos = git_client
-        .repositories_client()
-        .list(organization, project)
-        .into_future()
-        .await?
-        .value;
-
     for repo in repos.iter() {
         info!("{}", repo.name);
     }
