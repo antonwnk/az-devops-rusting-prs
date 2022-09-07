@@ -6,14 +6,10 @@ use std::env;
 use std::sync::Arc;
 
 
-const ORGANIZATION: &str = "IconProGmbH";
-const PROJECT: &str = "ARES";
-
-
-async fn get_repos(credential: Credential) -> Result<Vec<git::models::GitRepository>> {
+async fn get_repos(organization: &str, project: &str, credential: Credential) -> Result<Vec<git::models::GitRepository>> {
     let git_client = git::ClientBuilder::new(credential).build();
     let repos = git_client.repositories_client()
-        .list(ORGANIZATION, PROJECT)
+        .list(organization, project)
         .into_future()
         .await?
         .value;
@@ -36,7 +32,10 @@ async fn main() -> Result<()> {
         }
     };
 
-    let repos = get_repos(credential.clone()).await?;
+    let organization = env::var("ADO_ORAGANIZATION").expect("Specify organization with $ADO_ORAGANIZATION.");
+    let project = env::var("ADO_PROJECT").expect("Specify project with $ADO_PROJECT");
+
+    let repos = get_repos(&organization, &project, credential.clone()).await?;
     
     for repo in repos.iter() {
         info!("{}", repo.name);
