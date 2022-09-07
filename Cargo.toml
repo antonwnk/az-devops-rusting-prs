@@ -13,3 +13,4 @@ tokio = { version = "1.0", features = ["full"] }
 azure_devops_rust_api = { version = "0.5.1", features = ["git"] }
 azure_core = { version = "0.4", default-features = true }
 azure_identity = "0.5"
+dotenv = "0.15.0"

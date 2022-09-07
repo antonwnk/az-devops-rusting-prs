@@ -1,6 +1,7 @@
 use anyhow::Result;
 use azure_devops_rust_api::git;
 use azure_devops_rust_api::Credential;
+use dotenv::dotenv;
 use log::info;
 use std::env;
 use std::sync::Arc;
@@ -19,6 +20,7 @@ async fn get_repos(organization: &str, project: &str, credential: Credential) ->
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv().ok();
     env_logger::init();
 
     let credential = match env::var("ADO_TOKEN") {
