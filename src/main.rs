@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let organization = env::var("ADO_ORAGANIZATION").expect("Specify organization with $ADO_ORAGANIZATION.");
+    let organization = env::var("ADO_ORGANIZATION").expect("Specify organization with $ADO_ORAGANIZATION.");
     let project = env::var("ADO_PROJECT").expect("Specify project with $ADO_PROJECT");
 
     let repos = get_repos(&organization, &project, credential.clone()).await?;
