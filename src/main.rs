@@ -1,8 +1,10 @@
 use anyhow::Result;
+use azure_devops_rust_api::core::models::TeamMemberList;
 use azure_devops_rust_api::git;
 use azure_devops_rust_api::core::*;
 use azure_devops_rust_api::Credential;
 use dotenv::dotenv;
+use inquire::MultiSelect;
 use log::info;
 use std::env;
 use std::sync::Arc;
@@ -18,7 +20,20 @@ async fn get_repos(organization: &str, project: &str, credential: &Credential) -
     Ok(repos)
 }
 
-// async fn get_contributors(organization: &str, project: &str, credential: Credential) -> Result<Vec<accounts::>
+
+async fn get_contributors(organization: &str, project: &str, credential: &Credential) -> Result<TeamMemberList> {
+    let core_client = ClientBuilder::new(credential.clone()).build();
+    let project_obj = core_client.projects_client()
+            .get(organization, project)
+            .into_future()
+            .await?;
+    let default_team = project_obj.default_team.unwrap();
+    let team_id = default_team.id.unwrap();
+    let members = core_client.teams_client().get_team_members_with_extended_properties(organization, project, &team_id).into_future().await?;
+    Ok(members)
+}
+
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -45,31 +60,8 @@ async fn main() -> Result<()> {
         info!("{}", repo.name);
     }
     info!("{} repos found.", repos.len());
-
-
-    let core_client = ClientBuilder::new(credential.clone()).build();
-
-    let project_obj = core_client.projects_client()
-        .get(&organization, &project)
-        .into_future()
-        .await?;
-
-    println!("PROJECT OBJ");
-    println!("{:#?}", project_obj);
-    println!();
     
-    let default_team = project_obj.default_team.unwrap();
-    let team_name = default_team.name.unwrap();
-    let team_id = default_team.id.unwrap();
-    println!("Default team name:\n{}", team_name);
-    println!("Default team GUID:\n{}", team_id);
-    println!();
-
-    println!("The members now");
-    // let plm = core_client.teams_client().get(&organization, &project, &team_id).into_future().await?;
-    let members = core_client.teams_client().get_team_members_with_extended_properties(&organization, &project, &team_id).into_future().await?;
-
-    println!("{:#?}", members);
+    let members = get_contributors(&organization, &project, &credential).await?;
 
     let member_names: Vec<String> = members.value.into_iter()
         .map(|member| member.identity)
@@ -78,6 +70,12 @@ async fn main() -> Result<()> {
         .collect();
 
     println!("{:?}", member_names);
+
+    let prompty_res = MultiSelect::new("Select your witnesses:", member_names)
+        .prompt()?;
+
+
+    println!("{:?}",  prompty_res);
 
     Ok(())
 }

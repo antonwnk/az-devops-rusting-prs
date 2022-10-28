@@ -10,4 +10,4 @@ Cargo.lock
 **/*.rs.bk
 
 # Some credentials you know
-.env
+*.env
