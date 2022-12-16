@@ -1,5 +1,4 @@
 use anyhow::Result;
-use azure_devops_rust_api::core::models::TeamMemberList;
 use azure_devops_rust_api::git;
 use azure_devops_rust_api::core::*;
 use azure_devops_rust_api::Credential;
@@ -31,9 +30,54 @@ async fn get_contributors(organization: &str, project: &str, credential: &Creden
     let default_team = project_obj.default_team.unwrap();
     let team_id = default_team.id.unwrap();
     let members = core_client.teams_client().get_team_members_with_extended_properties(organization, project, &team_id).into_future().await?;
-    Ok(members)
+
+    let names = members.value.into_iter()
+        .map(|member| member.identity)
+        .flatten()
+        .map(|identity| identity.unique_name)
+        .collect();
+
+    Ok(names)
 }
 
+
+fn get_local_repo(repository: Option<Repository>) -> Result<String> {
+    // if the repository is initialized
+    if let Some(repo) = repository {
+        // it should have the origin remote, else boom
+        let remote = repo.find_remote("origin")?;
+        // if the remote has a url
+        if let Some(url) = remote.url() {
+            // return that
+            return Ok(url.to_owned())
+        }
+    }
+    // else prompt it from the user
+    Ok(String::from("adf"))
+}
+
+fn get_src_branch(repository: Option<Repository>) -> Result<String> {
+    // if we're inside a repo
+    if let Some(repo) = repository {
+        // we should be able to get a hold of the HEAD ref
+        let head = repo.head()?;
+        // if we're on a branch head
+        if head.is_branch() {
+            // then return the short name
+            let name = head.shorthand().expect("Expected branch name to be valid UTF-8.");
+            return Ok(name.to_owned())
+        }
+    }
+
+    // else prompt it from the user
+    Ok(String::from("asdf"))
+}
+
+
+fn get_target_branch(repository: Option<Repository>) -> Result<String> { todo!() }
+
+
+fn get_reviewers() { todo!() }
 
 
 #[tokio::main]
@@ -54,12 +98,21 @@ async fn main() -> Result<()> {
 
     // let organization = env::var("ADO_ORGANIZATION").expect("Specify organization with $ADO_ORGANIZATION.");
     // let project = env::var("ADO_PROJECT").expect("Specify project with $ADO_PROJECT");
+    
+    let repo = Repository::open(env::current_dir()?).ok();
 
-    let repo_url: String;
+    let repo_url = get_local_repo(repo);
+    let source_branch = get_src_branch(repo);
+    let target_branch = get_target_branch(repo);
+    let reviewer_list = get_reviewers();
 
-    if let Ok(repo) = Repository::open(env::current_dir()?) {
-        let remote = repo.find_remote("origin")?;
-        repo_url = remote.url().unwrap().to_owned(); 
+    // PR format:  <repo> <src_branch> <trg_branch> <title> <desc> <req_reviewers> <opt_reviewers>
+
+    dbg!(repo_url.ok());
+
+    // if let Ok(repo) = Repository::open(env::current_dir()?) {
+    //     let remote = repo.find_remote("origin")?;
+    //     repo_url = remote.url().unwrap().to_owned(); 
         
         // let source_branch = 
         
