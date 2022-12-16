@@ -4,13 +4,13 @@ use azure_devops_rust_api::core::*;
 use azure_devops_rust_api::Credential;
 use dotenv::dotenv;
 use git2::Repository;
-use inquire::MultiSelect;
+
 use log::info;
 use std::env;
 use std::sync::Arc;
 
 
-async fn get_repos(organization: &str, project: &str, credential: &Credential) -> Result<Vec<git::models::GitRepository>> {
+async fn list_repos(organization: &str, project: &str, credential: &Credential) -> Result<Vec<git::models::GitRepository>> {
     let git_client = git::ClientBuilder::new(credential.clone()).build();
     let repos = git_client.repositories_client()
         .list(organization, project)
@@ -21,7 +21,7 @@ async fn get_repos(organization: &str, project: &str, credential: &Credential) -
 }
 
 
-async fn get_contributors(organization: &str, project: &str, credential: &Credential) -> Result<TeamMemberList> {
+async fn list_contributors(organization: &str, project: &str, credential: &Credential) -> Result<Vec<String>> {
     let core_client = ClientBuilder::new(credential.clone()).build();
     let project_obj = core_client.projects_client()
             .get(organization, project)
@@ -41,8 +41,8 @@ async fn get_contributors(organization: &str, project: &str, credential: &Creden
 }
 
 
-fn get_local_repo(repository: Option<Repository>) -> Result<String> {
-    // if the repository is initialized
+fn get_local_repo(repository: &Option<Repository>) -> Result<String> {
+    // if we're inside a repo
     if let Some(repo) = repository {
         // it should have the origin remote, else boom
         let remote = repo.find_remote("origin")?;
@@ -56,7 +56,7 @@ fn get_local_repo(repository: Option<Repository>) -> Result<String> {
     Ok(String::from("adf"))
 }
 
-fn get_src_branch(repository: Option<Repository>) -> Result<String> {
+fn get_src_branch(repository: &Option<Repository>) -> Result<String> {
     // if we're inside a repo
     if let Some(repo) = repository {
         // we should be able to get a hold of the HEAD ref
@@ -64,8 +64,7 @@ fn get_src_branch(repository: Option<Repository>) -> Result<String> {
         // if we're on a branch head
         if head.is_branch() {
             // then return the short name
-            let name = head.shorthand().expect("Expected branch name to be valid UTF-8.");
-            return Ok(name.to_owned())
+            return Ok(head.shorthand().expect("Expected branch name to be valid UTF-8.").to_owned())
         }
     }
 
@@ -74,10 +73,16 @@ fn get_src_branch(repository: Option<Repository>) -> Result<String> {
 }
 
 
-fn get_target_branch(repository: Option<Repository>) -> Result<String> { todo!() }
+fn get_target_branch(repository: &Option<Repository>) -> Result<String> {
+    // if we're inside a repo
+    if let Some(repo) = repository {
+        let target_branch = repo.find_remote("origin")?.default_branch()?;
+        return Ok(target_branch.as_str().expect("Expected branch name to be valid UTF-8.").to_owned())
+    }
 
-
-fn get_reviewers() { todo!() }
+    // else prompt it from the user
+    Ok(String::from("asf"))
+}
 
 
 #[tokio::main]
@@ -85,26 +90,26 @@ async fn main() -> Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    // let credential = match env::var("ADO_TOKEN") {
-    //     Ok(token) => {
-    //         info!("Authenticating with PAT from $ADO_TOKEN");
-    //         Credential::from_pat(token)
-    //     }
-    //     Err(_) => {
-    //         info!("Attempting to authenticate with Azure CLI");
-    //         Credential::from_token_credential(Arc::new(azure_identity::AzureCliCredential {}))
-    //     }
-    // };
+    let credential = match env::var("ADO_TOKEN") {
+        Ok(token) => {
+            info!("Authenticating with PAT from $ADO_TOKEN");
+            Credential::from_pat(token)
+        }
+        Err(_) => {
+            info!("Attempting to authenticate with Azure CLI");
+            Credential::from_token_credential(Arc::new(azure_identity::AzureCliCredential {}))
+        }
+    };
 
-    // let organization = env::var("ADO_ORGANIZATION").expect("Specify organization with $ADO_ORGANIZATION.");
-    // let project = env::var("ADO_PROJECT").expect("Specify project with $ADO_PROJECT");
+    let organization = env::var("ADO_ORGANIZATION").expect("Specify organization with $ADO_ORGANIZATION.");
+    let project = env::var("ADO_PROJECT").expect("Specify project with $ADO_PROJECT");
     
     let repo = Repository::open(env::current_dir()?).ok();
 
-    let repo_url = get_local_repo(repo);
-    let source_branch = get_src_branch(repo);
-    let target_branch = get_target_branch(repo);
-    let reviewer_list = get_reviewers();
+    let repo_url = get_local_repo(&repo);
+    let source_branch = get_src_branch(&repo);
+    let target_branch = get_target_branch(&repo);
+    let contributor_list = list_contributors(&organization, &project, &credential).await?;
 
     // PR format:  <repo> <src_branch> <trg_branch> <title> <desc> <req_reviewers> <opt_reviewers>
 
@@ -112,20 +117,17 @@ async fn main() -> Result<()> {
 
     // if let Ok(repo) = Repository::open(env::current_dir()?) {
     //     let remote = repo.find_remote("origin")?;
-    //     repo_url = remote.url().unwrap().to_owned(); 
+    //     let repo_url = remote.url().unwrap().to_owned(); 
         
-        // let source_branch = 
+    //     // let source_branch = 
         
-        dbg!(repo.head().unwrap().is_branch());
-        dbg!(repo.head().unwrap().name());
-        dbg!(repo.head().unwrap().shorthand());
-        println!("{}", repo.head_detached().ok().unwrap());
-
-    } else {    
-        // then just take url from the user
-        repo_url = String::from("bleh");
-    }
-    info!("{}", repo_url);
+    //     let kiki = repo.head()?.shorthand()
+    //     dbg!(repo.head().unwrap().is_branch());
+    //     dbg!(repo.head().unwrap().name());
+    //     dbg!(repo.head().unwrap().shorthand());
+    //     println!("{}", repo.head_detached().ok().unwrap());
+    // }
+    // info!("{}", repo_url);
 
 
     // let repos = get_repos(&organization, &project, &credential).await?;
